@@ -4,11 +4,60 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { createHash } from "node:crypto";
+import {
+  anniversaryEndsAt,
+  anniversaryHistory,
+  isAnniversaryOver,
+} from "../src/config/anniversary.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const dist = path.join(root, "dist");
+const dist = path.resolve(root, process.argv[2] || "dist");
 const home = await readFile(path.join(dist, "index.html"), "utf8");
 const site = "https://www.ottenauer-motorradfreunde.de";
+const anniversaryExpired = isAnniversaryOver(
+  process.env.OMF_BUILD_TIME ?? new Date(),
+);
+assert(home.includes(`data-anniversary-ends-at="${anniversaryEndsAt}"`));
+assert(home.includes(`data-anniversary-expired="${anniversaryExpired}"`));
+const body = home.slice(home.indexOf("<body>"));
+assert.equal(
+  [...body.matchAll(/data-anniversary-event(?:=|\s|>)/g)].length,
+  anniversaryExpired ? 0 : 4,
+);
+assert.equal(
+  [...body.matchAll(/data-anniversary-pending(?:=|\s|>)/g)].length,
+  anniversaryExpired ? 0 : 2,
+);
+assert.equal(
+  [...body.matchAll(/data-anniversary-history(?:=|\s|>)/g)].length,
+  1,
+);
+assert(home.includes(".anniversary-expired [data-anniversary-event]"));
+assert(home.includes(".anniversary-expired [data-anniversary-pending]"));
+const heroButton = body.match(
+  /<a\b[^>]*data-anniversary-cta[^>]*>([^<]*)<\/a>/,
+);
+assert(heroButton, "Hero button missing");
+assert.equal(
+  attributes(heroButton[0]).href,
+  anniversaryExpired ? "#geschichte" : "#jubilaeum",
+);
+assert.equal(
+  heroButton[1].trim(),
+  anniversaryExpired ? "Unsere Geschichte" : "50 Jahre OMF",
+);
+assert.equal(body.includes('id="jubilaeum"'), !anniversaryExpired);
+assert.equal(body.includes('href="#jubilaeum"'), !anniversaryExpired);
+assert.equal(body.includes("Nächster großer Termin"), !anniversaryExpired);
+assert(body.includes('<div class="year">2026</div>'));
+assert(
+  body.includes(
+    anniversaryExpired
+      ? anniversaryHistory
+      : "Das Jubiläum wird im Oktober in der Merkurhalle Ottenau gefeiert.",
+  ),
+);
+if (anniversaryExpired) assert(!body.includes("Das Jubiläum wird im Oktober"));
 function attributes(tag) {
   return Object.fromEntries(
     [...tag.matchAll(/([\w:-]+)="([^"]*)"/g)].map(([, name, value]) => [
@@ -240,9 +289,10 @@ const tourCaption =
 assert(home.includes(`<figcaption>${tourCaption}</figcaption>`));
 assert(home.includes(`data-photo-caption="${tourCaption}"`));
 assert(home.includes("Hier treffen wir uns zum Stammtisch"));
-assert(home.includes("Rückblick: 40 Jahre OMF"));
+assert.equal(home.includes("Rückblick: 40 Jahre OMF"), !anniversaryExpired);
 assert(home.includes("vereinsgeschichte-1280.webp"));
-assert(home.includes('data-count="seconds"'));
+assert.equal(home.includes('data-count="seconds"'), !anniversaryExpired);
+assert.equal(home.includes('id="countdown-status"'), !anniversaryExpired);
 assert(home.includes('id="photo-viewer"'));
 assert.equal([...home.matchAll(/anniversary-seal__branch--/g)].length, 2);
 assert(home.includes("anniversary-seal__glint"));
@@ -283,21 +333,41 @@ for (const [link] of instagramLinks) {
   assert(link.includes("neuem Tab"));
 }
 assert(!home.includes("instagram.com/embed"));
-assert(home.includes("data-map-load"));
-assert(home.includes("data-map-open"));
-assert(home.includes("data-map-cancel"));
-assert(home.includes("merkurhalle-map-preview.png"));
-assert(/data-map-placeholder\s+hidden/.test(home));
-assert(home.includes("https://www.openstreetmap.org/copyright"));
-const mapPreviewMetadata = await sharp(
-  path.join(dist, "v9/assets/merkurhalle-map-preview.png"),
-).metadata();
-assert.equal(mapPreviewMetadata.width, 706);
-assert.equal(mapPreviewMetadata.height, 355);
-assert(home.includes('id="venue-map-frame"'));
-assert(home.includes("Furtwänglerstraße 15"));
+if (!anniversaryExpired) {
+  assert(home.includes("data-map-load"));
+  assert(home.includes("data-map-open"));
+  assert(home.includes("data-map-cancel"));
+  assert(home.includes("merkurhalle-map-preview.png"));
+  assert(/data-map-placeholder\s+hidden/.test(home));
+  assert(home.includes("https://www.openstreetmap.org/copyright"));
+  const mapPreviewMetadata = await sharp(
+    path.join(dist, "v9/assets/merkurhalle-map-preview.png"),
+  ).metadata();
+  assert.equal(mapPreviewMetadata.width, 706);
+  assert.equal(mapPreviewMetadata.height, 355);
+  assert(home.includes('id="venue-map-frame"'));
+  assert(home.includes("Furtwänglerstraße 15"));
+  assert(home.includes("https://www.openstreetmap.org/export/embed.html?"));
+  assert(
+    home.includes(
+      "https://www.google.com/maps/dir/?api=1&amp;destination=Merkurhalle",
+    ),
+  );
+} else {
+  for (const reference of [
+    "venue-map-frame",
+    "data-map-load",
+    "merkurhalle-map-preview.png",
+    "Furtwänglerstraße 15",
+    "Anfahrt zur Merkurhalle",
+    "openstreetmap.org/export/embed.html",
+    "google.com/maps/dir/",
+    "17.–18. Oktober 2026",
+  ]) {
+    assert(!body.includes(reference), `Expired event reference: ${reference}`);
+  }
+}
 assert(/class="footer-badge"[\s\S]*?omf-logo-transparent-v2\.png/.test(home));
-assert(home.includes("https://www.openstreetmap.org/export/embed.html?"));
 assert(
   !home.includes('rel="preconnect"'),
   "External map must not preconnect before consent",
@@ -320,11 +390,9 @@ assert.equal(
   "3347813e9e8f082cdf48495818bd370ccff94b687efb8aa1c8a7b36cfcfb8291",
   "Official Instagram glyph must remain unchanged",
 );
-assert.equal([...home.matchAll(/data-photo-caption=/g)].length, 5);
-assert(
-  home.includes(
-    "https://www.google.com/maps/dir/?api=1&amp;destination=Merkurhalle",
-  ),
+assert.equal(
+  [...home.matchAll(/data-photo-caption=/g)].length,
+  anniversaryExpired ? 4 : 5,
 );
 for (const sourceSet of home.matchAll(/srcset="([^"]+)"/g)) {
   for (const entry of sourceSet[1].split(",")) {

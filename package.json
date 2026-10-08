@@ -10,6 +10,7 @@
     "check": "astro check",
     "photos:prepare": "node scripts/prepare-club-photos.mjs",
     "test:site": "node scripts/check-site.mjs",
+    "test:anniversary": "node scripts/check-anniversary.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

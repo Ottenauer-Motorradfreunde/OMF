@@ -64,7 +64,18 @@ Produktionsprüfung:
 ```bash
 npm run build
 npm run test:site
+npm run test:anniversary
 ```
+
+## Automatischer Ablauf des Jubiläums
+
+Ab **19.10.2026, 00:00 Uhr Europe/Berlin** (18.10.2026, 22:00 UTC) veröffentlicht jeder Build die Startseite ohne Jubiläums-Veranstaltung, Countdown, Merkurhalle-Anfahrt und Jubiläumsnavigation. Der Hero-Button führt dann als „Unsere Geschichte“ zur Zeitleiste. Der Eintrag für 2026 erhält den dauerhaften Text zur Vereinsgeschichte; das Hero-Emblem bleibt erhalten. Bis einschließlich 18.10.2026 bleibt die Darstellung bestehen.
+
+Der vorhandene Pages-Workflow baut und veröffentlicht am 19.–21. Oktober jeweils um 00:07, 01:07 und 03:07 Uhr in `Europe/Berlin`. Die zusätzlichen Termine fangen verzögerte oder ausgefallene GitHub-Schedule-Läufe ab. Cron hat kein Jahresfeld; spätere jährliche Läufe behalten die abgelaufene Darstellung bei. Pushes auf `main` und manuelle Workflow-Läufe funktionieren weiterhin. Der Stichtag in `src/config/anniversary.mjs` ist absolut und setzt sich nicht jährlich zurück.
+
+Eine im HTML eingebettete Absicherung blendet veraltete Hinweise bereits vor der ersten Darstellung aus und entfernt sie anschließend aus dem DOM. Sie prüft auch offene Tabs am Stichtag sowie nach dem Aufwachen oder Wiederherstellen einer Seite. Sie benötigt keine zusätzliche Netzwerkanfrage. Die Browseruhr bestimmt diese Absicherung; der statische Build verwendet die Uhr des GitHub-Runners.
+
+`npm run test:anniversary` prüft die Zeitgrenze, den Browser-Fallback und zwei vollständige Builds unmittelbar vor und am Stichtag mit allen Website-Prüfungen. Die Testausgaben liegen unter dem ignorierten `tmp/anniversary-tests/`; der produktive `dist`-Ordner bleibt dabei erhalten. `OMF_BUILD_TIME` dient ausschließlich diesen Zeitsimulationen und wird im Deployment nicht gesetzt.
 
 ## Dokumentation
 

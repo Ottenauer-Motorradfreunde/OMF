@@ -1,12 +1,22 @@
 ---
 import V9Photo from "../components/V9Photo.astro";
 import { siteConfig } from "../config/site";
+import {
+  anniversaryEndsAt,
+  anniversaryHistory,
+  isAnniversaryOver,
+} from "../config/anniversary.mjs";
+import anniversaryScript from "../scripts/anniversary.js?raw";
+
+const anniversaryExpired = isAnniversaryOver(
+  process.env.OMF_BUILD_TIME ?? new Date(),
+);
 
 const basePath = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
 const asset = (file: string) => `${basePath}v9/assets/${file}`;
-const assetRevision = "20261003-1";
+const assetRevision = "20261008-1";
 const instagramUrl = "https://www.instagram.com/omf19762026/";
 const pageTitle = `${siteConfig.name} | Motorradverein in Gaggenau`;
 const description =
@@ -61,7 +71,7 @@ const photoSources = (name: string) => {
 };
 
 const navigation = [
-  { href: "#jubilaeum", label: "Jubiläum" },
+  ...(!anniversaryExpired ? [{ href: "#jubilaeum", label: "Jubiläum" }] : []),
   { href: "#aktuell", label: "Vereinsleben" },
   { href: "#geschichte", label: "Verein" },
   { href: "#kontakt", label: "Kontakt" },
@@ -130,13 +140,20 @@ const history = [
   {
     year: 2026,
     title: "50 Jahre OMF",
-    text: "Das Jubiläum wird im Oktober in der Merkurhalle Ottenau gefeiert.",
+    text: anniversaryExpired
+      ? anniversaryHistory
+      : "Das Jubiläum wird im Oktober in der Merkurhalle Ottenau gefeiert.",
   },
 ];
 ---
 
 <!doctype html>
-<html lang="de">
+<html
+  lang="de"
+  data-anniversary-ends-at={anniversaryEndsAt}
+  data-anniversary-history-text={anniversaryHistory}
+  data-anniversary-expired={String(anniversaryExpired)}
+>
   <head>
     <meta charset="utf-8" />
     <meta
@@ -180,6 +197,13 @@ const history = [
     <script is:inline>
       document.documentElement.classList.add("js");
     </script>
+    <style is:inline>
+      .anniversary-expired [data-anniversary-event],
+      .anniversary-expired [data-anniversary-pending] {
+        display: none !important;
+      }
+    </style>
+    <script is:inline set:html={anniversaryScript}></script>
     <script
       is:inline
       src={`${basePath}v9/scripts/main.js?v=${assetRevision}`}
@@ -210,7 +234,14 @@ const history = [
         </a>
         <nav class="navlinks" aria-label="Hauptnavigation">
           {navigation.map((item) => (
-            <a href={item.href}>{item.label}</a>
+            <a
+              href={item.href}
+              data-anniversary-event={
+                item.href === "#jubilaeum" ? "" : undefined
+              }
+            >
+              {item.label}
+            </a>
           ))}
         </nav>
         <button
@@ -229,7 +260,12 @@ const history = [
     <div class="drawer" id="drawer" aria-hidden="true">
       <nav aria-label="Mobile Hauptnavigation">
         {navigation.map((item) => (
-          <a href={item.href}>{item.label}</a>
+          <a
+            href={item.href}
+            data-anniversary-event={item.href === "#jubilaeum" ? "" : undefined}
+          >
+            {item.label}
+          </a>
         ))}
       </nav>
       <small>Ottenauer Motorradfreunde e. V.</small>
@@ -280,8 +316,15 @@ const history = [
                 Ottenau, unterwegs im Murgtal und weit darüber hinaus.
               </p>
               <div class="btnrow hero-actions">
-                <a class="btn primary" href="#jubilaeum">
-                  50 Jahre OMF
+                <a
+                  class="btn primary"
+                  href={anniversaryExpired ? "#geschichte" : "#jubilaeum"}
+                  data-anniversary-cta
+                  data-anniversary-pending={
+                    !anniversaryExpired ? "" : undefined
+                  }
+                >
+                  {anniversaryExpired ? "Unsere Geschichte" : "50 Jahre OMF"}
                 </a>
                 <a class="btn ghost" href="#kontakt">
                   Mitfahren & Kontakt
@@ -300,182 +343,193 @@ const history = [
         </div>
       </section>
 
-      <section
-        class="section dark"
-        id="jubilaeum"
-        aria-labelledby="event-title"
-      >
-        <div class="wrap">
-          <div class="section-head reveal">
-            <div>
-              <div class="eyebrow">Nächster großer Termin</div>
-              <h2 class="display" id="event-title">
-                50 Jahre OMF
-              </h2>
+      {!anniversaryExpired && (
+        <section
+          class="section dark"
+          id="jubilaeum"
+          aria-labelledby="event-title"
+          data-anniversary-event
+        >
+          <div class="wrap">
+            <div class="section-head reveal">
+              <div>
+                <div class="eyebrow">Nächster großer Termin</div>
+                <h2 class="display" id="event-title">
+                  50 Jahre OMF
+                </h2>
+              </div>
             </div>
-          </div>
-          <article class="card dark event-box reveal">
-            <figure class="event-media">
-              <V9Photo
-                src={asset("gemeinschaft-2016-1280.webp")}
-                srcset={photoSources("gemeinschaft-2016")}
-                fullSrc={asset("gemeinschaft-2016-1920.webp")}
-                caption="Rückblick: 40 Jahre OMF · 2016"
-                sizes="(max-width: 1020px) 92vw, 560px"
-                alt="Gemeinsames Gruppenfoto zum 40-jährigen Vereinsjubiläum 2016"
-                width={1920}
-                height={863}
-              />
-              <figcaption>Rückblick: 40 Jahre OMF · 2016</figcaption>
-            </figure>
-            <div class="event-main">
-              <div class="pill">
-                <span class="dot"></span> Jubiläumsfest
-              </div>
-              <h3>
-                <time datetime="2026-10-17">17.–18. Oktober 2026</time>
-                <br />
-                Merkurhalle Ottenau
-              </h3>
-              <div class="event-meta">
-                <span>🕥 im Kalender ab 10:30 Uhr</span>
-                <span>📍 Merkurhalle Ottenau</span>
-              </div>
-              <div
-                class="countdown"
-                id="countdown"
-                data-target="2026-10-17T10:30:00+02:00"
-                aria-label="Zeit bis zum Jubiläumsfest"
-                aria-live="off"
-              >
-                {[
-                  ["days", "Tage"],
-                  ["hours", "Stunden"],
-                  ["minutes", "Minuten"],
-                  ["seconds", "Sekunden"],
-                ].map(([unit, label]) => (
-                  <div class="count">
-                    <b data-count={unit}>–</b>
-                    <small>{label}</small>
-                  </div>
-                ))}
-              </div>
-              <p id="countdown-status" hidden>
-                Jubiläum läuft / Termin erreicht
-              </p>
-            </div>
-          </article>
-          <section
-            class="card dark venue-map reveal"
-            aria-labelledby="venue-map-title"
-          >
-            <div class="venue-map__details">
-              <div class="venue-map__address">
-                <div class="eyebrow">Anfahrt</div>
-                <h3 class="display" id="venue-map-title">
+            <article class="card dark event-box reveal">
+              <figure class="event-media">
+                <V9Photo
+                  src={asset("gemeinschaft-2016-1280.webp")}
+                  srcset={photoSources("gemeinschaft-2016")}
+                  fullSrc={asset("gemeinschaft-2016-1920.webp")}
+                  caption="Rückblick: 40 Jahre OMF · 2016"
+                  sizes="(max-width: 1020px) 92vw, 560px"
+                  alt="Gemeinsames Gruppenfoto zum 40-jährigen Vereinsjubiläum 2016"
+                  width={1920}
+                  height={863}
+                />
+                <figcaption>Rückblick: 40 Jahre OMF · 2016</figcaption>
+              </figure>
+              <div class="event-main">
+                <div class="pill">
+                  <span class="dot"></span> Jubiläumsfest
+                </div>
+                <h3>
+                  <time datetime="2026-10-17">17.–18. Oktober 2026</time>
+                  <br />
                   Merkurhalle Ottenau
                 </h3>
-                <p>
-                  Furtwänglerstraße 15
-                  <br />
-                  76571 Gaggenau-Ottenau
+                <div class="event-meta">
+                  <span>🕥 im Kalender ab 10:30 Uhr</span>
+                  <span>📍 Merkurhalle Ottenau</span>
+                </div>
+                <div
+                  class="countdown"
+                  id="countdown"
+                  data-target="2026-10-17T10:30:00+02:00"
+                  aria-label="Zeit bis zum Jubiläumsfest"
+                  aria-live="off"
+                >
+                  {[
+                    ["days", "Tage"],
+                    ["hours", "Stunden"],
+                    ["minutes", "Minuten"],
+                    ["seconds", "Sekunden"],
+                  ].map(([unit, label]) => (
+                    <div class="count">
+                      <b data-count={unit}>–</b>
+                      <small>{label}</small>
+                    </div>
+                  ))}
+                </div>
+                <p id="countdown-status" hidden>
+                  Jubiläum läuft / Termin erreicht
                 </p>
               </div>
-              <div class="venue-map__actions">
-                <a
-                  class="event-directions"
-                  href={directionsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Anfahrt zur Merkurhalle
-                  <small>Route in Google Maps öffnen</small>
-                </a>
-                <a
-                  class="venue-map__link"
-                  href={venueMapLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Standort in OpenStreetMap öffnen
-                </a>
-                <button
-                  type="button"
-                  class="venue-map__unload"
-                  data-map-unload
+            </article>
+            <section
+              class="card dark venue-map reveal"
+              aria-labelledby="venue-map-title"
+            >
+              <div class="venue-map__details">
+                <div class="venue-map__address">
+                  <div class="eyebrow">Anfahrt</div>
+                  <h3 class="display" id="venue-map-title">
+                    Merkurhalle Ottenau
+                  </h3>
+                  <p>
+                    Furtwänglerstraße 15
+                    <br />
+                    76571 Gaggenau-Ottenau
+                  </p>
+                </div>
+                <div class="venue-map__actions">
+                  <a
+                    class="event-directions"
+                    href={directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Anfahrt zur Merkurhalle
+                    <small>Route in Google Maps öffnen</small>
+                  </a>
+                  <a
+                    class="venue-map__link"
+                    href={venueMapLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Standort in OpenStreetMap öffnen
+                  </a>
+                  <button
+                    type="button"
+                    class="venue-map__unload"
+                    data-map-unload
+                    hidden
+                  >
+                    Karte ausblenden
+                  </button>
+                  <p
+                    class="venue-map__status"
+                    role="status"
+                    data-map-status
+                  ></p>
+                </div>
+              </div>
+              <div class="venue-map__viewer">
+                <div class="venue-map__preview" data-map-preview>
+                  <img
+                    src={asset("merkurhalle-map-preview.png")}
+                    width="706"
+                    height="355"
+                    loading="lazy"
+                    alt="Kartenansicht von Ottenau mit der Merkurhalle an der Furtwänglerstraße markiert"
+                  />
+                  <button
+                    class="btn primary"
+                    type="button"
+                    data-map-open
+                    aria-controls="venue-map-consent"
+                    aria-expanded="false"
+                    hidden
+                  >
+                    Interaktive Karte öffnen
+                  </button>
+                  <a
+                    class="venue-map__attribution"
+                    href="https://www.openstreetmap.org/copyright"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    © OpenStreetMap-Mitwirkende
+                  </a>
+                </div>
+                <div
+                  id="venue-map-consent"
+                  class="venue-map__placeholder"
+                  data-map-placeholder
                   hidden
                 >
-                  Karte ausblenden
-                </button>
-                <p class="venue-map__status" role="status" data-map-status></p>
-              </div>
-            </div>
-            <div class="venue-map__viewer">
-              <div class="venue-map__preview" data-map-preview>
-                <img
-                  src={asset("merkurhalle-map-preview.png")}
-                  width="706"
-                  height="355"
-                  loading="lazy"
-                  alt="Kartenansicht von Ottenau mit der Merkurhalle an der Furtwänglerstraße markiert"
-                />
-                <button
-                  class="btn primary"
-                  type="button"
-                  data-map-open
-                  aria-controls="venue-map-consent"
-                  aria-expanded="false"
+                  <strong>Interaktive Karte</strong>
+                  <p id="venue-map-notice">
+                    Mit „Karte laden“ erlaubst du die Verbindung zu
+                    OpenStreetMap. Dabei werden deine IP-Adresse und technische
+                    Verbindungsdaten übermittelt.
+                  </p>
+                  <button
+                    class="btn primary"
+                    type="button"
+                    data-map-load
+                    aria-controls="venue-map-frame"
+                    aria-describedby="venue-map-notice"
+                  >
+                    Karte laden
+                  </button>
+                  <button
+                    class="venue-map__cancel"
+                    type="button"
+                    data-map-cancel
+                  >
+                    Zurück zur Vorschau
+                  </button>
+                  <a href={`${basePath}datenschutz/#map-title`}>
+                    Datenschutzhinweise zur Karte
+                  </a>
+                </div>
+                <div
+                  id="venue-map-frame"
+                  class="venue-map__frame"
+                  data-map-url={venueMapUrl}
                   hidden
-                >
-                  Interaktive Karte öffnen
-                </button>
-                <a
-                  class="venue-map__attribution"
-                  href="https://www.openstreetmap.org/copyright"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  © OpenStreetMap-Mitwirkende
-                </a>
+                ></div>
               </div>
-              <div
-                id="venue-map-consent"
-                class="venue-map__placeholder"
-                data-map-placeholder
-                hidden
-              >
-                <strong>Interaktive Karte</strong>
-                <p id="venue-map-notice">
-                  Mit „Karte laden“ erlaubst du die Verbindung zu OpenStreetMap.
-                  Dabei werden deine IP-Adresse und technische Verbindungsdaten
-                  übermittelt.
-                </p>
-                <button
-                  class="btn primary"
-                  type="button"
-                  data-map-load
-                  aria-controls="venue-map-frame"
-                  aria-describedby="venue-map-notice"
-                >
-                  Karte laden
-                </button>
-                <button class="venue-map__cancel" type="button" data-map-cancel>
-                  Zurück zur Vorschau
-                </button>
-                <a href={`${basePath}datenschutz/#map-title`}>
-                  Datenschutzhinweise zur Karte
-                </a>
-              </div>
-              <div
-                id="venue-map-frame"
-                class="venue-map__frame"
-                data-map-url={venueMapUrl}
-                hidden
-              ></div>
-            </div>
-          </section>
-        </div>
-      </section>
+            </section>
+          </div>
+        </section>
+      )}
 
       <section class="section" id="aktuell" aria-labelledby="news-title">
         <div class="wrap">
@@ -537,7 +591,18 @@ const history = [
                   <div class="year">{item.year}</div>
                   <div>
                     <h3>{item.title}</h3>
-                    <p>{item.text}</p>
+                    <p
+                      data-anniversary-history={
+                        item.year === 2026 ? "" : undefined
+                      }
+                      data-anniversary-pending={
+                        item.year === 2026 && !anniversaryExpired
+                          ? ""
+                          : undefined
+                      }
+                    >
+                      {item.text}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -704,7 +769,14 @@ const history = [
           <nav aria-label="Navigation im Fußbereich">
             <h2>Navigation</h2>
             {navigation.map((item) => (
-              <a href={item.href}>{item.label}</a>
+              <a
+                href={item.href}
+                data-anniversary-event={
+                  item.href === "#jubilaeum" ? "" : undefined
+                }
+              >
+                {item.label}
+              </a>
             ))}
           </nav>
           <nav aria-label="Rechtliche Informationen">

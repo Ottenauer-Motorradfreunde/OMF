@@ -4,7 +4,7 @@
   const drawer = document.getElementById("drawer");
   const countdown = document.getElementById("countdown");
 
-  if (!header || !menuBtn || !drawer || !countdown) return;
+  if (!header || !menuBtn || !drawer) return;
 
   const onScroll = () => {
     header.classList.toggle("scrolled", window.scrollY > 24);
@@ -120,38 +120,47 @@
     reveals.forEach((element) => element.classList.add("in"));
   }
 
-  const target = new Date(countdown.dataset.target).getTime();
-  const countdownStatus = document.getElementById("countdown-status");
-  const countValues = Object.fromEntries(
-    Array.from(countdown.querySelectorAll("[data-count]")).map((element) => [
-      element.dataset.count,
-      element,
-    ]),
-  );
+  if (countdown) {
+    const target = new Date(countdown.dataset.target).getTime();
+    let countdownTimer;
+    const countdownStatus = document.getElementById("countdown-status");
+    const countValues = Object.fromEntries(
+      Array.from(countdown.querySelectorAll("[data-count]")).map((element) => [
+        element.dataset.count,
+        element,
+      ]),
+    );
 
-  function tick() {
-    const diff = target - Date.now();
-    if (diff <= 0) {
-      countdown.hidden = true;
-      if (countdownStatus) countdownStatus.hidden = false;
-      return;
+    function tick() {
+      if (!countdown.isConnected) {
+        clearInterval(countdownTimer);
+        return;
+      }
+      const diff = target - Date.now();
+      if (diff <= 0) {
+        countdown.hidden = true;
+        if (countdownStatus) countdownStatus.hidden = false;
+        clearInterval(countdownTimer);
+        return;
+      }
+      const values = {
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor(diff / 3600000) % 24,
+        minutes: Math.floor(diff / 60000) % 60,
+        seconds: Math.floor(diff / 1000) % 60,
+      };
+      for (const [unit, value] of Object.entries(values)) {
+        const element = countValues[unit];
+        const text =
+          unit === "days" ? String(value) : String(value).padStart(2, "0");
+        if (element && element.textContent !== text) element.textContent = text;
+      }
     }
-    const values = {
-      days: Math.floor(diff / 86400000),
-      hours: Math.floor(diff / 3600000) % 24,
-      minutes: Math.floor(diff / 60000) % 60,
-      seconds: Math.floor(diff / 1000) % 60,
-    };
-    for (const [unit, value] of Object.entries(values)) {
-      const element = countValues[unit];
-      const text =
-        unit === "days" ? String(value) : String(value).padStart(2, "0");
-      if (element && element.textContent !== text) element.textContent = text;
-    }
+
+    tick();
+    if (Number.isFinite(target) && target > Date.now())
+      countdownTimer = setInterval(tick, 1000);
   }
-
-  tick();
-  if (Number.isFinite(target)) setInterval(tick, 1000);
 
   const viewer = document.getElementById("photo-viewer");
   const viewerImage = document.getElementById("photo-viewer-image");
