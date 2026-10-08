@@ -4,13 +4,13 @@ Neue offizielle Website der Ottenauer Motorradfreunde e. V. aus Gaggenau-Ottenau
 
 ## Versionen ansehen
 
-- **Hauptversion – v9-Prototyp:** [https://www.ottenauer-motorradfreunde.de/](https://www.ottenauer-motorradfreunde.de/)
-- **Bisheriger Astro-Entwurf:** [https://www.ottenauer-motorradfreunde.de/entwurf/](https://www.ottenauer-motorradfreunde.de/entwurf/)
-- **Jubiläumsseite des bisherigen Entwurfs:** [https://www.ottenauer-motorradfreunde.de/50-jahre/](https://www.ottenauer-motorradfreunde.de/50-jahre/)
+- **Fertige Hauptseite:** [https://www.ottenauer-motorradfreunde.de/](https://www.ottenauer-motorradfreunde.de/)
 
 ## Status
 
-Die visuelle v9-Version ist die aktuelle Hauptseite. Sie wurde aus dem eigenständigen HTML-Prototyp in eine wartbarere Struktur mit ausgelagerten Assets, Styles und JavaScript überführt. Der vorherige mehrseitige Astro-Entwurf bleibt für Vergleich und Weiterentwicklung separat erreichbar. Das CMS ist weiterhin nicht Bestandteil dieser Frontend-Phase.
+Die visuelle v9-Version ist die aktuelle Hauptseite. Sie wurde aus dem eigenständigen HTML-Prototyp in eine wartbarere Struktur mit ausgelagerten Assets, Styles und JavaScript überführt. Der vorherige mehrseitige Astro-Entwurf bleibt im Repository erhalten. Seine Dateien und der Ordner `_aktuelles` in `src/pages` beginnen mit `_` und werden von Astro nicht veröffentlicht. Öffentlich bleiben die Hauptseite, Impressum und Datenschutz. Das CMS ist weiterhin nicht Bestandteil dieser Frontend-Phase.
+
+Die Sitemap enthält ausschließlich die indexierbare Hauptseite. Impressum und Datenschutz behalten ihre bestehende `noindex`-Markierung, solange die Vereinsbestätigung aussteht. `robots.txt` erlaubt deren Abruf und verweist auf die Sitemap. SEO-Metadaten sowie `Organization`- und `WebSite`-Daten verwenden die offizielle Domain, bestehende Vereinsinformationen und das Instagram-Profil.
 
 ## Technik
 
@@ -63,6 +63,7 @@ Produktionsprüfung:
 
 ```bash
 npm run build
+npm run test:site
 ```
 
 ## Dokumentation

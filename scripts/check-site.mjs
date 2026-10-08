@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, access, readdir } from "node:fs/promises";
+import { readFile, access, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -9,6 +9,41 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const dist = path.join(root, "dist");
 const home = await readFile(path.join(dist, "index.html"), "utf8");
 const site = "https://www.ottenauer-motorradfreunde.de";
+function attributes(tag) {
+  return Object.fromEntries(
+    [...tag.matchAll(/([\w:-]+)="([^"]*)"/g)].map(([, name, value]) => [
+      name,
+      value.replaceAll("&amp;", "&"),
+    ]),
+  );
+}
+
+function metadata(html) {
+  return new Map(
+    [...html.matchAll(/<meta\b[^>]*>/g)].map(([tag]) => {
+      const values = attributes(tag);
+      return [values.name || values.property, values.content];
+    }),
+  );
+}
+
+const meta = metadata(home);
+const title = home.match(/<title>([^<]+)<\/title>/)?.[1];
+assert.equal(
+  title,
+  "Ottenauer Motorradfreunde e. V. | Motorradverein in Gaggenau",
+);
+assert(meta.get("description")?.includes("Gaggenau-Ottenau"));
+assert(!/noindex/i.test(meta.get("robots") || ""));
+assert.equal(meta.get("og:title"), title);
+assert.equal(meta.get("og:description"), meta.get("description"));
+assert.equal(meta.get("og:site_name"), "Ottenauer Motorradfreunde e. V.");
+assert.equal(meta.get("og:url"), `${site}/`);
+assert.equal(meta.get("twitter:card"), "summary_large_image");
+assert.equal(meta.get("twitter:title"), title);
+assert.equal(meta.get("twitter:description"), meta.get("description"));
+assert.equal(meta.get("twitter:image"), meta.get("og:image"));
+assert.equal(meta.get("twitter:image:alt"), meta.get("og:image:alt"));
 assert(
   home.includes(`<link rel="canonical" href="${site}/"`),
   "Homepage canonical must use the custom domain",
@@ -17,6 +52,48 @@ assert(
   home.includes(`content="${site}/v9/assets/gemeinschaft-2016-1920.webp"`),
   "Open Graph image must use the custom domain",
 );
+const socialImage = new URL(meta.get("og:image"));
+const socialImageMetadata = await sharp(
+  path.join(dist, socialImage.pathname),
+).metadata();
+assert.equal(socialImage.origin, site);
+assert.equal(socialImageMetadata.width, Number(meta.get("og:image:width")));
+assert.equal(socialImageMetadata.height, Number(meta.get("og:image:height")));
+assert.equal(meta.get("og:image:type"), `image/${socialImageMetadata.format}`);
+
+const jsonLd = [
+  ...home.matchAll(
+    /<script\b[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g,
+  ),
+].map(([, json]) => JSON.parse(json));
+assert.equal(jsonLd.length, 1, "Homepage must provide structured data");
+assert.equal(jsonLd[0]["@context"], "https://schema.org");
+const graph = jsonLd[0]["@graph"];
+assert(Array.isArray(graph));
+const organization = graph.find((entry) => entry["@type"] === "Organization");
+const website = graph.find((entry) => entry["@type"] === "WebSite");
+assert(organization && website, "Organization and WebSite must both exist");
+assert.equal(new Set(graph.map((entry) => entry["@id"])).size, graph.length);
+assert.equal(organization.name, "Ottenauer Motorradfreunde e. V.");
+assert.equal(organization.url, `${site}/`);
+assert.equal(organization.location["@type"], "Place");
+assert.equal(organization.location.name, "Gaggenau-Ottenau");
+assert.deepEqual(organization.sameAs, [
+  "https://www.instagram.com/omf19762026/",
+]);
+assert.equal(
+  organization.address,
+  undefined,
+  "Do not publish an unconfirmed address",
+);
+const logo = new URL(organization.logo);
+assert.equal(logo.origin, site);
+const logoMetadata = await sharp(path.join(dist, logo.pathname)).metadata();
+assert(logoMetadata.width >= 112 && logoMetadata.height >= 112);
+assert.equal(website.url, `${site}/`);
+assert.equal(website.name, organization.name);
+assert.equal(website.inLanguage, "de-DE");
+assert.equal(website.publisher["@id"], organization["@id"]);
 const removed = [
   "nachwuchs-presseausschnitt",
   "erste-hilfe-gruppenfoto",
@@ -24,11 +101,14 @@ const removed = [
   "jubilaeum-hero.webp",
 ];
 
+const htmlPages = new Map();
+const localReferences = [];
+
 async function inspect(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
     if (entry.isDirectory()) await inspect(file);
-    else if (/\.(html|css|js|xml)$/.test(entry.name)) {
+    else if (/\.(html|css|js|xml|txt)$/.test(entry.name)) {
       const body = await readFile(file, "utf8");
       assert(
         !body.includes("emfau88.github.io"),
@@ -37,16 +117,110 @@ async function inspect(dir) {
       assert(!body.includes("/motorrad/"), `${file} uses the old base path`);
       for (const name of removed)
         assert(!body.includes(name), `${file} still references ${name}`);
+      if (entry.name.endsWith(".html")) {
+        htmlPages.set(file, body);
+        const route = path
+          .relative(dist, file)
+          .split(path.sep)
+          .join("/")
+          .replace(/index\.html$/, "");
+        assert(
+          body.includes(`<link rel="canonical" href="${site}/${route}"`),
+          `Incorrect canonical in ${file}`,
+        );
+        for (const [, url] of body.matchAll(/(?:src|href)="([^"]+)"/g)) {
+          localReferences.push([url, file]);
+        }
+        for (const [, sourceSet] of body.matchAll(/srcset="([^"]+)"/g)) {
+          for (const entry of sourceSet.split(",")) {
+            localReferences.push([entry.trim().split(/\s+/)[0], file]);
+          }
+        }
+      } else if (entry.name.endsWith(".css")) {
+        for (const [, url] of body.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
+          localReferences.push([url, file]);
+        }
+      }
     }
   }
 }
 await inspect(dist);
+assert.deepEqual(
+  [...htmlPages.keys()]
+    .map((file) => path.relative(dist, file).split(path.sep).join("/"))
+    .sort(),
+  ["datenschutz/index.html", "impressum/index.html", "index.html"],
+  "Only the finished homepage and legal pages may be published",
+);
+
+for (const [reference, source] of localReferences) {
+  const base = new URL(
+    path.relative(dist, source).split(path.sep).join("/"),
+    `${site}/`,
+  );
+  const url = new URL(reference.replaceAll("&amp;", "&"), base);
+  if (url.origin !== site) continue;
+  let local = path.join(dist, decodeURIComponent(url.pathname));
+  if ((await stat(local)).isDirectory()) local = path.join(local, "index.html");
+  await access(local);
+  if (url.hash && local.endsWith(".html")) {
+    assert(
+      htmlPages
+        .get(local)
+        ?.includes(`id="${decodeURIComponent(url.hash.slice(1))}"`),
+      `Missing anchor target for ${reference} in ${source}`,
+    );
+  }
+}
+
+const sitemapIndex = await readFile(
+  path.join(dist, "sitemap-index.xml"),
+  "utf8",
+);
+assert(sitemapIndex.includes("<sitemapindex"));
+const sitemapFiles = [...sitemapIndex.matchAll(/<loc>([^<]+)<\/loc>/g)];
+assert(sitemapFiles.length > 0, "Sitemap index must reference a sitemap");
+const sitemapPages = [];
+for (const [, reference] of sitemapFiles) {
+  const url = new URL(reference);
+  assert.equal(url.origin, site);
+  const sitemap = await readFile(path.join(dist, url.pathname), "utf8");
+  assert(sitemap.includes("<urlset"));
+  sitemapPages.push(
+    ...[...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, page]) => page),
+  );
+}
+const indexablePages = [...htmlPages.entries()]
+  .filter(([, html]) => !/noindex/i.test(metadata(html).get("robots") || ""))
+  .map(
+    ([file]) =>
+      new URL(
+        path
+          .relative(dist, file)
+          .split(path.sep)
+          .join("/")
+          .replace(/index\.html$/, ""),
+        `${site}/`,
+      ).href,
+  );
+assert.deepEqual(sitemapPages.sort(), indexablePages.sort());
+assert.deepEqual(sitemapPages, [`${site}/`]);
+
+const robots = await readFile(path.join(dist, "robots.txt"), "utf8");
+assert(/^User-agent:\s*\*\s*$/im.test(robots));
+assert(/^Allow:\s*\/\s*$/im.test(robots));
+assert(
+  !/^Disallow:[^\r\n]*\S/im.test(robots),
+  "Noindex pages must remain crawlable",
+);
+assert(robots.includes(`Sitemap: ${site}/sitemap-index.xml`));
 for (const route of ["impressum", "datenschutz"]) {
   assert(
     home.includes(`href="/${route}/"`),
     `${route} missing from homepage footer`,
   );
   const html = await readFile(path.join(dist, route, "index.html"), "utf8");
+  assert.equal(metadata(html).get("robots"), "noindex");
   assert(html.includes("VR 520321") || route === "datenschutz");
   assert(html.includes("Dorfstraße 139"));
   assert(html.includes("legal-document"));
@@ -172,5 +346,5 @@ for (const url of home.matchAll(
 }
 assert(!/<iframe|<form\b/.test(home), "Unexpected embedded service or form");
 console.log(
-  "Site checks passed: photos, legal routes, official Instagram glyph, footer logo and opt-in map.",
+  "Site checks passed: SEO, JSON-LD, sitemap, robots, local links/assets, photos, legal routes, Instagram and opt-in map.",
 );

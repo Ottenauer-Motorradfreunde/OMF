@@ -32,6 +32,8 @@ jobs:
         run: npm ci
       - name: Build website
         run: npm run build
+      - name: Check website
+        run: npm run test:site
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact

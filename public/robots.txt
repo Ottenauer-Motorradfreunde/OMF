@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.ottenauer-motorradfreunde.de/sitemap-index.xml

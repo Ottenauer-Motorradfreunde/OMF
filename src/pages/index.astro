@@ -1,5 +1,6 @@
 ---
 import V9Photo from "../components/V9Photo.astro";
+import { siteConfig } from "../config/site";
 
 const basePath = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
@@ -7,6 +8,36 @@ const basePath = import.meta.env.BASE_URL.endsWith("/")
 const asset = (file: string) => `${basePath}v9/assets/${file}`;
 const assetRevision = "20261003-1";
 const instagramUrl = "https://www.instagram.com/omf19762026/";
+const pageTitle = `${siteConfig.name} | Motorradverein in Gaggenau`;
+const description =
+  "Ottenauer Motorradfreunde e. V.: Motorradverein in Gaggenau-Ottenau seit 1976. Gemeinsame Touren, Stammtisch und Einblicke in unser Vereinsleben.";
+const canonicalUrl = "https://www.ottenauer-motorradfreunde.de/";
+const socialImage = new URL(asset("gemeinschaft-2016-1920.webp"), canonicalUrl)
+  .href;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${canonicalUrl}#organization`,
+      name: siteConfig.name,
+      alternateName: siteConfig.shortName,
+      url: canonicalUrl,
+      logo: new URL(asset("omf-logo-transparent-v2.png"), canonicalUrl).href,
+      location: { "@type": "Place", name: siteConfig.location },
+      sameAs: [instagramUrl],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${canonicalUrl}#website`,
+      name: siteConfig.name,
+      alternateName: siteConfig.shortName,
+      url: canonicalUrl,
+      inLanguage: "de-DE",
+      publisher: { "@id": `${canonicalUrl}#organization` },
+    },
+  ],
+};
 const venueMapUrl =
   "https://www.openstreetmap.org/export/embed.html?bbox=8.3305%2C48.7868%2C8.3397%2C48.7905&layer=mapnik&marker=48.78862%2C8.33508";
 const venueMapLink =
@@ -113,26 +144,34 @@ const history = [
       content="width=device-width,initial-scale=1,viewport-fit=cover"
     />
     <meta name="theme-color" content="#0f1110" />
-    <meta
-      name="description"
-      content="Ottenauer Motorradfreunde e. V. – Vereinsleben, Termine, Aktuelles und 50 Jahre OMF."
-    />
+    <meta name="description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="de_DE" />
-    <meta property="og:title" content="Ottenauer Motorradfreunde e. V." />
-    <meta
-      property="og:description"
-      content="Vereinsleben, Termine, Aktuelles und 50 Jahre OMF."
-    />
-    <meta
-      property="og:image"
-      content={`https://www.ottenauer-motorradfreunde.de${asset("gemeinschaft-2016-1920.webp")}`}
-    />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={socialImage} />
+    <meta property="og:image:type" content="image/webp" />
+    <meta property="og:image:width" content="1920" />
+    <meta property="og:image:height" content="863" />
     <meta
       property="og:image:alt"
       content="Ottenauer Motorradfreunde beim 40-jährigen Jubiläum 2016"
     />
-    <link rel="canonical" href="https://www.ottenauer-motorradfreunde.de/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
+    <meta
+      name="twitter:image:alt"
+      content="Ottenauer Motorradfreunde beim 40-jährigen Jubiläum 2016"
+    />
+    <link rel="canonical" href={canonicalUrl} />
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")}
+    ></script>
     <link rel="icon" href={asset("omf-logo.webp")} />
     <link
       rel="stylesheet"
@@ -146,7 +185,7 @@ const history = [
       src={`${basePath}v9/scripts/main.js?v=${assetRevision}`}
       defer
     ></script>
-    <title>Ottenauer Motorradfreunde e. V.</title>
+    <title>{pageTitle}</title>
   </head>
   <body>
     <a class="skip-link" href="#main-content">
