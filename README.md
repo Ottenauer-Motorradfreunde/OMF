@@ -4,9 +4,9 @@ Neue offizielle Website der Ottenauer Motorradfreunde e. V. aus Gaggenau-Ottenau
 
 ## Versionen ansehen
 
-- **Hauptversion – v9-Prototyp:** [https://emfau88.github.io/motorrad/](https://emfau88.github.io/motorrad/)
-- **Bisheriger Astro-Entwurf:** [https://emfau88.github.io/motorrad/entwurf/](https://emfau88.github.io/motorrad/entwurf/)
-- **Jubiläumsseite des bisherigen Entwurfs:** [https://emfau88.github.io/motorrad/50-jahre/](https://emfau88.github.io/motorrad/50-jahre/)
+- **Hauptversion – v9-Prototyp:** [https://www.ottenauer-motorradfreunde.de/](https://www.ottenauer-motorradfreunde.de/)
+- **Bisheriger Astro-Entwurf:** [https://www.ottenauer-motorradfreunde.de/entwurf/](https://www.ottenauer-motorradfreunde.de/entwurf/)
+- **Jubiläumsseite des bisherigen Entwurfs:** [https://www.ottenauer-motorradfreunde.de/50-jahre/](https://www.ottenauer-motorradfreunde.de/50-jahre/)
 
 ## Status
 

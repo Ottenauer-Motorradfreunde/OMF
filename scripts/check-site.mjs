@@ -8,6 +8,15 @@ import { createHash } from "node:crypto";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dist = path.join(root, "dist");
 const home = await readFile(path.join(dist, "index.html"), "utf8");
+const site = "https://www.ottenauer-motorradfreunde.de";
+assert(
+  home.includes(`<link rel="canonical" href="${site}/"`),
+  "Homepage canonical must use the custom domain",
+);
+assert(
+  home.includes(`content="${site}/v9/assets/gemeinschaft-2016-1920.webp"`),
+  "Open Graph image must use the custom domain",
+);
 const removed = [
   "nachwuchs-presseausschnitt",
   "erste-hilfe-gruppenfoto",
@@ -19,8 +28,13 @@ async function inspect(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
     if (entry.isDirectory()) await inspect(file);
-    else if (/\.(html|css)$/.test(entry.name)) {
+    else if (/\.(html|css|js|xml)$/.test(entry.name)) {
       const body = await readFile(file, "utf8");
+      assert(
+        !body.includes("emfau88.github.io"),
+        `${file} uses the old domain`,
+      );
+      assert(!body.includes("/motorrad/"), `${file} uses the old base path`);
       for (const name of removed)
         assert(!body.includes(name), `${file} still references ${name}`);
     }
@@ -29,7 +43,7 @@ async function inspect(dir) {
 await inspect(dist);
 for (const route of ["impressum", "datenschutz"]) {
   assert(
-    home.includes(`href="/motorrad/${route}/"`),
+    home.includes(`href="/${route}/"`),
     `${route} missing from homepage footer`,
   );
   const html = await readFile(path.join(dist, route, "index.html"), "utf8");
@@ -141,7 +155,7 @@ assert(
 for (const sourceSet of home.matchAll(/srcset="([^"]+)"/g)) {
   for (const entry of sourceSet[1].split(",")) {
     const [url, width] = entry.trim().split(/\s+/);
-    const local = path.join(dist, url.replace(/^\/motorrad\//, ""));
+    const local = path.join(dist, url.replace(/^\//, ""));
     await access(local);
     const metadata = await sharp(local).metadata();
     assert.equal(
@@ -152,9 +166,9 @@ for (const sourceSet of home.matchAll(/srcset="([^"]+)"/g)) {
   }
 }
 for (const url of home.matchAll(
-  /(?:src|href)="(\/motorrad\/v9\/[^"?]+)(?:\?[^" ]*)?"/g,
+  /(?:src|href)="(\/v9\/[^"?]+)(?:\?[^" ]*)?"/g,
 )) {
-  await access(path.join(dist, url[1].replace(/^\/motorrad\//, "")));
+  await access(path.join(dist, url[1].replace(/^\//, "")));
 }
 assert(!/<iframe|<form\b/.test(home), "Unexpected embedded service or form");
 console.log(
